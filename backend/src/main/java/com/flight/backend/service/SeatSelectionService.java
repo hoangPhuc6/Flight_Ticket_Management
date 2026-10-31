@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.flight.backend.entity.enums.BookingStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +29,19 @@ public class SeatSelectionService {
     private final SeatRepository seatRepository;
     private final FlightSeatRepository flightSeatRepository;
     private final BookingRepository bookingRepository;
+    private final EmailService emailService;
 
     public SeatSelectionService(
             FlightRepository flightRepository,
             SeatRepository seatRepository,
             FlightSeatRepository flightSeatRepository,
-            BookingRepository bookingRepository) {
+            BookingRepository bookingRepository,
+            EmailService emailService) {
         this.flightRepository = flightRepository;
         this.seatRepository = seatRepository;
         this.flightSeatRepository = flightSeatRepository;
         this.bookingRepository = bookingRepository;
+        this.emailService = emailService;
     }
 
     // Sơ đồ ghế đầy đủ của chuyến bay (layout từ model máy bay + tình trạng còn trống)
@@ -138,6 +142,11 @@ public class SeatSelectionService {
             target.setStatus(FlightSeatStatus.BOOKED);
             ticket.setFlightSeat(target);
             flightSeatRepository.save(target);
+        }
+
+        // Nếu đơn đã thanh toán, tự động gửi email vé điện tử cập nhật số ghế
+        if (booking.getStatus() == BookingStatus.PAID || booking.getStatus() == BookingStatus.CONFIRMED) {
+            emailService.sendETicketEmail(booking);
         }
     }
 }

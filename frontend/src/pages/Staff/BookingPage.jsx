@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Search, Eye, ChevronLeft, ChevronRight, X, CheckCircle2, XCircle, User, Plane, CreditCard, Calendar, Armchair, Loader2, AlertCircle, Download } from 'lucide-react';
+import { Search, Eye, Mail, ChevronLeft, ChevronRight, X, CheckCircle2, XCircle, User, Plane, CreditCard, Calendar, Armchair, Loader2, AlertCircle, Download } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { bookingService } from '../../api/services/bookingService';
@@ -57,7 +57,7 @@ function Toast({ toasts, onRemove }) {
 }
 
 // Modal chi tiết đặt vé + thao tác (xác nhận / hủy) — đồng bộ với trang Admin
-function DetailModal({ booking, flightInfo, onClose, onConfirm, onCancel }) {
+function DetailModal({ booking, flightInfo, onClose, onConfirm, onCancel, onSendEmail }) {
   if (!booking) return null;
   const st = normStatus(booking.status);
   const pay = normPay(booking.paymentStatus);
@@ -141,9 +141,13 @@ function DetailModal({ booking, flightInfo, onClose, onConfirm, onCancel }) {
         {/* Thao tác */}
         {st !== 'CANCELLED' && (
           <div className="flex gap-3 p-5 pt-0">
-            {pay !== 'PAID' && (
+            {pay !== 'PAID' ? (
               <button onClick={() => onConfirm(booking.bookingId)} className="flex-1 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" /> Xác nhận thanh toán
+              </button>
+            ) : (
+              <button onClick={() => onSendEmail(booking.bookingId)} className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                <Mail className="w-4 h-4" /> Gửi lại vé qua Email
               </button>
             )}
             <button onClick={() => onCancel(booking.bookingId)} className="flex-1 py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
@@ -224,11 +228,20 @@ function BookingPage() {
   const handleConfirmPayment = async (id) => {
     try {
       await bookingService.confirmPayment(id);
-      addToast(`Đã xác nhận thanh toán cho đơn #${id}.`);
+      addToast(`Đã xác nhận thanh toán và gửi vé điện tử cho đơn #${id}.`);
       setSelected(null);
       refetch();
     } catch (e) {
       addToast(e.response?.data?.message || 'Không thể xác nhận thanh toán.', 'error');
+    }
+  };
+
+  const handleSendEmail = async (id) => {
+    try {
+      await bookingService.sendTicketEmail(id);
+      addToast(`Đã gửi lại vé điện tử qua email cho đơn #${id}.`);
+    } catch (e) {
+      addToast(e.response?.data?.message || 'Không thể gửi vé qua email.', 'error');
     }
   };
 
@@ -278,6 +291,7 @@ function BookingPage() {
           onClose={() => setSelected(null)}
           onConfirm={handleConfirmPayment}
           onCancel={handleCancel}
+          onSendEmail={handleSendEmail}
         />
       )}
 

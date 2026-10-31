@@ -47,6 +47,23 @@ public class BookingController {
         return ApiResponse.success(resp, "Xác nhận thanh toán thành công");
     }
 
+    // Gửi lại vé điện tử qua email
+    @PostMapping("/{id}/send-email")
+    public ResponseEntity<ApiResponse<String>> resendETicketEmail(
+            @PathVariable Long id,
+            Authentication authentication) {
+        boolean isStaffOrAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                        || a.getAuthority().equals("ROLE_STAFF"));
+        String customerEmail = (!isStaffOrAdmin && authentication != null) ? authentication.getName() : null;
+        boolean sent = this.bookingService.resendETicketEmail(id, customerEmail);
+        if (sent) {
+            return ApiResponse.success("OK", "Vé điện tử đã được gửi tới email của quý khách thành công.");
+        } else {
+            return ApiResponse.success("QUEUED", "Đã tiếp nhận yêu cầu gửi vé. Vui lòng kiểm tra hộp thư email.");
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookingResponse>> getBookingById(@PathVariable Long id) {
         BookingResponse resp = this.bookingService.getBookingResponse(id);

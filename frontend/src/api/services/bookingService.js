@@ -97,6 +97,10 @@ export const bookingService = {
       return { id, status: 'CANCELLED' };
     }
   },
+  sendTicketEmail: async (bookingId) => {
+    const res = await api.post(`/bookings/${bookingId}/send-email`);
+    return res.data?.data || res.data;
+  },
   confirmPayment: async (bookingId) => {
     const res = await api.post(`/bookings/${bookingId}/confirm-payment`);
     saveLocalBookingState(bookingId, { paymentStatus: 'PAID', status: 'PAID' });

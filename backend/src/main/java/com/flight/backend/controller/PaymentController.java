@@ -1,6 +1,7 @@
 package com.flight.backend.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,9 +20,9 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
-    @PostMapping
+    @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(@PathVariable Long id) {
-        PaymentResponse res = this.paymentService.getPaymentById(null);
+        PaymentResponse res = this.paymentService.getPaymentById(id);
         return ApiResponse.success(res, "Lấy payment thành công");
     }
 
