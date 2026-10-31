@@ -181,6 +181,25 @@ function SeatSelectionModal({ booking, onClose, onDone }) {
 function BookingDetailModal({ booking, onClose, onChooseSeat, onCancel }) {
   const canChooseSeat = booking.status === 'PAID' && !booking.seatsAssigned;
   const canCancel = CANCELLABLE.has(booking.status);
+  const isPaid = booking.status === 'PAID' || booking.status === 'CONFIRMED';
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    setEmailStatus(null);
+    try {
+      await bookingService.sendTicketEmail(booking.bookingId);
+      setEmailStatus({ success: true, message: 'Đã gửi vé điện tử đến email của bạn!' });
+    } catch (e) {
+      setEmailStatus({
+        success: false,
+        message: e?.response?.data?.message || 'Không thể gửi email vé. Vui lòng thử lại sau.'
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
   return (
     <div className="mf-modal-overlay" onClick={onClose}>
       <div className="mf-modal" onClick={(e) => e.stopPropagation()}>
@@ -217,6 +236,16 @@ function BookingDetailModal({ booking, onClose, onChooseSeat, onCancel }) {
         </div>
 
         <div className="mf-modal-foot">
+          {emailStatus && (
+            <div className={`mf-email-status ${emailStatus.success ? 'success' : 'error'}`}>
+              {emailStatus.message}
+            </div>
+          )}
+          {isPaid && (
+            <button className="mf-btn-email" onClick={handleSendEmail} disabled={sendingEmail}>
+              <i className="fa-solid fa-envelope"></i> {sendingEmail ? 'Đang gửi vé...' : 'Gửi lại vé qua Email'}
+            </button>
+          )}
           {booking.status === 'PENDING' && (
             <div className="mf-pending-note">
               <i className="fa-solid fa-clock"></i> Đơn đang chờ nhân viên xác nhận chuyển khoản.

@@ -28,7 +28,6 @@ import com.flight.backend.repository.RegulationRepository;
 import com.flight.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
-
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -52,6 +51,7 @@ public class BookingService {
     private final RegulationRepository regulationRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final EmailService emailService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -65,7 +65,8 @@ public class BookingService {
             BookingMapper bookingMapper,
             RegulationRepository regulationRepository,
             UserRepository userRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            EmailService emailService) {
         this.bookingRepository = bookingRepository;
         this.userService = userService;
         this.flightService = flightService;
@@ -78,6 +79,7 @@ public class BookingService {
         this.regulationRepository = regulationRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.emailService = emailService;
     }
 
     // Đọc quy định kiểu số nguyên theo settingKey (null nếu chưa cấu hình)
@@ -298,7 +300,7 @@ public class BookingService {
                 .build();
     }
 
-    // Staff xác nhận đã nhận được chuyển khoản -> đánh dấu thanh toán thành công
+    // Staff xác nhận đã nhận được chuyển khoản -> đánh dấu thanh toán thành công và gửi vé điện tử
     @Transactional
     public BookingResponse confirmPaymentByBooking(Long bookingId) {
         Booking booking = getBookingById(bookingId);
@@ -307,7 +309,27 @@ public class BookingService {
             throw new RuntimeException("Đơn đặt chưa có thông tin thanh toán.");
         }
         paymentService.paymentSuccess(payment.getId());
-        return bookingMapper.toResponse(getBookingById(bookingId));
+
+        Booking updatedBooking = getBookingById(bookingId);
+        emailService.sendETicketEmail(updatedBooking);
+        return bookingMapper.toResponse(updatedBooking);
+    }
+
+    // Gửi lại vé điện tử qua email (khách hàng hoặc nhân viên)
+    @Transactional
+    public boolean resendETicketEmail(Long bookingId, String customerEmail) {
+        Booking booking = getBookingById(bookingId);
+        if (customerEmail != null) {
+            User owner = booking.getCustomer();
+            if (owner == null || owner.getEmail() == null
+                    || !owner.getEmail().equalsIgnoreCase(customerEmail)) {
+                throw new RuntimeException("Bạn không có quyền gửi lại vé của đơn đặt này.");
+            }
+        }
+        if (booking.getStatus() != BookingStatus.PAID && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Chỉ có thể gửi vé điện tử cho đơn đặt đã được thanh toán.");
+        }
+        return emailService.sendETicketEmail(booking);
     }
 
     @Transactional
@@ -337,13 +359,17 @@ public class BookingService {
         // R05: chỉ được hủy trước giờ khởi hành tối thiểu N giờ theo quy định
         Integer cancelBeforeHours = regInt("cancel_before_hours");
         LocalDateTime departure = booking.getFlight() != null ? booking.getFlight().getDepartureTime() : null;
-        if (cancelBeforeHours != null && departure != null
-                && LocalDateTime.now().plusHours(cancelBeforeHours).isAfter(departure)) {
-            throw new RuntimeException(
-                    "Chỉ được hủy vé trước giờ khởi hành ít nhất " + cancelBeforeHours + " giờ.");
+        if (cancelBeforeHours != null && departure != null) {
+            LocalDateTime deadline = departure.minusHours(cancelBeforeHours);
+            if (LocalDateTime.now().isAfter(deadline)) {
+                throw new RuntimeException(
+                        "Không thể hủy vé: phải hủy trước giờ khởi hành tối thiểu "
+                                + cancelBeforeHours + " giờ.");
+            }
         }
 
-        boolean wasPaid = booking.getStatus() == BookingStatus.PAID;
+        boolean wasPaid = booking.getStatus() == BookingStatus.PAID
+                || booking.getStatus() == BookingStatus.CONFIRMED;
 
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setUpdatedAt(LocalDateTime.now());
