@@ -35,6 +35,6 @@ build/
 # Local Spring profile
 src/main/resources/application-local.properties
 
-# Environment variables
+# Environment files
 .env
 !.env.example
