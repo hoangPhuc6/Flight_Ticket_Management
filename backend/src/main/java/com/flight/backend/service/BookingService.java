@@ -1,4 +1,4 @@
-package com.flight.backend.service;
+﻿package com.flight.backend.service;
 
 import com.flight.backend.dto.booking.BookingResponse;
 import com.flight.backend.dto.booking.CreateBookingRequest;
@@ -19,6 +19,7 @@ import com.flight.backend.entity.enums.FlightSeatStatus;
 import com.flight.backend.entity.enums.NotificationChannel;
 import com.flight.backend.entity.enums.NotificationStatus;
 import com.flight.backend.entity.enums.NotificationType;
+import com.flight.backend.entity.enums.PaymentMethod;
 import com.flight.backend.entity.enums.PaymentStatus;
 import com.flight.backend.entity.enums.TicketStatus;
 import com.flight.backend.mapper.BookingMapper;
@@ -156,7 +157,7 @@ public class BookingService {
         booking.setTickets(tickets);
         bookingRepository.save(booking);
 
-        this.paymentService.createPayment(booking);
+        this.paymentService.createPayment(booking, req.getPaymentMethod());
 
         // Gửi thông báo cho nhân viên: có đơn mới đã báo chuyển khoản, chờ xác nhận
         createTransferNotification(booking, customer, totalAmount);
@@ -296,6 +297,8 @@ public class BookingService {
                 .ticketClassId(purchasedClassId)
                 .ticketClassName(purchasedClassName)
                 .seatsAssigned(seatsAssigned)
+                .discountAmount(b.getDiscountAmount())
+                .finalAmount(b.getFinalAmount())
                 .tickets(ticketDtos)
                 .build();
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/Customer/MyFlights.css';
 import '../../css/Customer/SeatMap.css';
@@ -433,7 +433,11 @@ function MyFlights() {
                   <div className="mf-card-right">
                     <span className={`mf-status ${st}`}>{STATUS_LABEL[b.status] || b.status}</span>
                     <span className="mf-pnr">PNR: {b.pnrCode}</span>
-                    <span className="mf-amount">{fmtMoney(b.totalAmount)}đ</span>
+                    <span className="mf-amount">
+                      {b.finalAmount != null && Number(b.finalAmount) !== Number(b.totalAmount)
+                        ? fmtMoney(b.finalAmount)
+                        : fmtMoney(b.totalAmount)}đ
+                    </span>
                     <div className="mf-actions">
                       <button className="mf-btn-detail" onClick={() => setDetailBooking(b)}>Chi tiết</button>
                       {canSeat && (

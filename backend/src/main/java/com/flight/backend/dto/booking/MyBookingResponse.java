@@ -21,7 +21,14 @@ public class MyBookingResponse {
     private String pnrCode;
     private String status;
     private String paymentStatus;
+
+    // totalAmount: tổng tiền gốc trước giảm giá
     private BigDecimal totalAmount;
+    // discountAmount: số tiền được giảm (null hoặc 0 nếu không dùng voucher)
+    private BigDecimal discountAmount;
+    // finalAmount: số tiền thực phải trả (= totalAmount - discountAmount); null nếu không dùng voucher
+    private BigDecimal finalAmount;
+
     private LocalDateTime bookingDate;
 
     // Thông tin chuyến bay

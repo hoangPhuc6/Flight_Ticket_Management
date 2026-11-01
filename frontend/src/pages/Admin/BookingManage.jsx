@@ -34,6 +34,13 @@ const fmtDateTime = (iso) => {
 };
 const vnd = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
 
+const METHOD_LABEL = {
+  BANK_TRANSFER: 'Chuyển khoản',
+  CREDIT_CARD: 'Thẻ tín dụng',
+  E_WALLET: 'Ví điện tử',
+  CASH: 'Tiền mặt',
+};
+
 // BookingResponse (DTO thật từ DB) + bản đồ chuyến bay -> shape dùng trong bảng
 const mapDbBooking = (b, flightMap) => {
   const id = b.bookingId || b.id;
@@ -138,7 +145,7 @@ function DetailModal({ booking, onClose, onConfirm, onCancel }) {
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Thanh toán</h4>
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>{booking.paymentMethod || 'Chưa thanh toán'}</span>
+              <span>{METHOD_LABEL[booking.paymentMethod] || booking.paymentMethod || 'Chưa xác định'}</span>
             </div>
             {booking.refund > 0 && (
               <div className="flex items-center justify-between text-sm">
@@ -288,6 +295,7 @@ export default function BookingManage() {
                 <th className="px-5 py-3">Chuyến bay</th>
                 <th className="px-5 py-3">Ghế</th>
                 <th className="px-5 py-3">Số tiền</th>
+                <th className="px-5 py-3">Phương thức</th>
                 <th className="px-5 py-3">Thanh toán</th>
                 <th className="px-5 py-3">Trạng thái</th>
                 <th className="px-5 py-3"></th>
@@ -295,18 +303,18 @@ export default function BookingManage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={8} className="py-16 text-center">
+                <tr><td colSpan={9} className="py-16 text-center">
                   <Loader2 className="w-6 h-6 animate-spin text-violet-500 mx-auto mb-2" />
                   <p className="text-sm text-slate-400">Đang tải dữ liệu...</p>
                 </td></tr>
               ) : error ? (
-                <tr><td colSpan={8} className="py-16 text-center">
+                <tr><td colSpan={9} className="py-16 text-center">
                   <AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-2" />
                   <p className="text-sm text-red-400 mb-3">{error}</p>
                   <button onClick={load} className="text-xs font-semibold text-violet-600 hover:underline">Thử lại</button>
                 </td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-400">Không tìm thấy kết quả phù hợp</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-slate-400">Không tìm thấy kết quả phù hợp</td></tr>
               ) : paged.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="px-5 py-3.5">
@@ -327,6 +335,11 @@ export default function BookingManage() {
                   </td>
                   <td className="px-5 py-3.5 text-sm text-violet-600 font-semibold">{b.seat}</td>
                   <td className="px-5 py-3.5 text-sm font-semibold text-slate-700">{vnd(b.amount)}</td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                      {METHOD_LABEL[b.paymentMethod] || b.paymentMethod || 'Chuyển khoản'}
+                    </span>
+                  </td>
                   <td className="px-5 py-3.5">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${PAY_STYLE[b.paymentStatus]}`}>{PAY_LABEL[b.paymentStatus]}</span>
                   </td>
