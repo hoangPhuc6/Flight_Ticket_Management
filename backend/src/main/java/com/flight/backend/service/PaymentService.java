@@ -1,5 +1,6 @@
 package com.flight.backend.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import com.flight.backend.entity.Payment;
 import com.flight.backend.entity.Ticket;
 import com.flight.backend.entity.enums.BookingStatus;
 import com.flight.backend.entity.enums.FlightSeatStatus;
+import com.flight.backend.entity.enums.PaymentMethod;
 import com.flight.backend.entity.enums.PaymentStatus;
 import com.flight.backend.entity.enums.TicketStatus;
 import com.flight.backend.mapper.PaymentMapper;
@@ -30,10 +32,16 @@ public class PaymentService {
         this.paymentMapper = paymentMapper;
     }
 
-    public void createPayment(Booking booking) {
+    // Tạo bản ghi thanh toán khi khách xác nhận đã chuyển khoản.
+    // amount = finalAmount (sau voucher) nếu có, ngược lại dùng totalAmount.
+    public void createPayment(Booking booking, PaymentMethod paymentMethod) {
         Payment payment = new Payment();
         payment.setBooking(booking);
-        payment.setAmount(booking.getTotalAmount());
+        BigDecimal amount = booking.getFinalAmount() != null
+                ? booking.getFinalAmount()
+                : booking.getTotalAmount();
+        payment.setAmount(amount);
+        payment.setPaymentMethod(paymentMethod);
         payment.setPaymentTime(LocalDateTime.now().plusMinutes(5));
         payment.setStatus(PaymentStatus.PENDING);
 
