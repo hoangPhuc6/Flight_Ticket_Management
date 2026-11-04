@@ -17,6 +17,7 @@ import RegulationsPage from '../pages/Staff/RegulationsPage';
 import Homepage from '../pages/Customer/Homepage';
 import SignIn from '../pages/Customer/SignIn';
 import SignUp from '../pages/Customer/SignUp';
+import CustomerProfile from '../pages/Customer/Profile';
 import SearchResults from '../components/Customer/SearchResults';
 import TicketInformation from '../components/Customer/TicketInformation';
 import Payment from '../components/Customer/Payment';
@@ -99,13 +100,26 @@ function AppRoutes() {
   }
 />
   <Route
-  path="/customer/my-flights"
+    path="/customer/my-flights"
   element={
     <ProtectedRoute allowedRoles={['CUSTOMER']}>
       <MyFlights />
     </ProtectedRoute>
   }
 />
+
+  <Route
+    path="/customer/profile"
+    element={
+      <ProtectedRoute allowedRoles={['CUSTOMER', 'STAFF', 'ADMIN']}>
+        <CustomerProfile />
+      </ProtectedRoute>
+    }
+  />
+  <Route
+    path="/profile"
+    element={<Navigate to="/customer/profile" replace />}
+  />
 
         {/* Staff Routes (Protected) */}
         <Route

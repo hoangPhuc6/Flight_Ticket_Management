@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/Customer/MyFlights.css';
 import '../../css/Customer/SeatMap.css';
@@ -375,7 +375,7 @@ function MyFlights() {
 
   return (
     <>
-      <Navbar />
+      <Navbar isSolid={true} />
       <div className="mf-page">
         <div className="mf-head">
           <h1>Chuyến bay của tôi</h1>
