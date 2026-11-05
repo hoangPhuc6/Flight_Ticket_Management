@@ -85,6 +85,7 @@ public class AirlineService {
                     "Airline name '" + request.getAirlineName()
                             + "' already exists");
         }
+        
 
         airline.setAirlineCode(
                 request.getAirlineCode().trim().toUpperCase());
