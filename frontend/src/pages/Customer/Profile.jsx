@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import authService from '../../api/authService';
 import { bookingService } from '../../api/services/bookingService';
+import { profileService } from '../../api/services/profileService';
 import Navbar from '../../components/Homepage/Navbar';
 import Footer from '../../components/Homepage/Footer';
 
@@ -42,27 +43,9 @@ export default function CustomerProfile() {
     }
   });
 
-  // Extended Profile Form
+  // Extended Profile Form (khởi tạo từ user trong localStorage, sau đó nạp từ API /users/me)
   const [profileForm, setProfileForm] = useState(() => {
-    const stored = localStorage.getItem('local_customer_profile');
     const u = JSON.parse(localStorage.getItem('user') || '{}');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return {
-          fullName: parsed.fullName || u.fullName || '',
-          email: u.email || '',
-          phoneNumber: parsed.phoneNumber || u.phoneNumber || '',
-          dateOfBirth: parsed.dateOfBirth || '',
-          gender: parsed.gender || 'MALE',
-          documentNumber: parsed.documentNumber || '',
-          nationality: parsed.nationality || 'Việt Nam',
-          address: parsed.address || ''
-        };
-      } catch {
-        // fallback
-      }
-    }
     return {
       fullName: u.fullName || '',
       email: u.email || '',
@@ -74,6 +57,7 @@ export default function CustomerProfile() {
       address: ''
     };
   });
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Password change state
   const [pwdForm, setPwdForm] = useState({
@@ -88,15 +72,67 @@ export default function CustomerProfile() {
   const [myBookings, setMyBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
 
-  // Preferences state
-  const [preferences, setPreferences] = useState(() => {
-    try {
-      const p = localStorage.getItem('local_user_preferences');
-      return p ? JSON.parse(p) : { emailNotifications: true, smsAlerts: true, promoEmails: true };
-    } catch {
-      return { emailNotifications: true, smsAlerts: true, promoEmails: true };
-    }
+  // Preferences state (nạp từ API cùng với hồ sơ)
+  const [preferences, setPreferences] = useState({
+    emailNotifications: true,
+    smsAlerts: true,
+    promoEmails: true
   });
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+
+  // Đồng bộ thông tin user cơ bản (tên, SĐT) vào localStorage để Navbar hiển thị đúng
+  const syncLocalUser = (profile) => {
+    setCurrentUser((prev) => {
+      const updated = {
+        ...prev,
+        fullName: profile.fullName,
+        phoneNumber: profile.phoneNumber || ''
+      };
+      localStorage.setItem('user', JSON.stringify(updated));
+      window.dispatchEvent(new Event('storage'));
+      return updated;
+    });
+  };
+
+  const applyProfile = (p) => {
+    setProfileForm({
+      fullName: p.fullName || '',
+      email: p.email || '',
+      phoneNumber: p.phoneNumber || '',
+      dateOfBirth: p.dateOfBirth || '',
+      gender: p.gender || 'MALE',
+      documentNumber: p.documentNumber || '',
+      nationality: p.nationality || 'Việt Nam',
+      address: p.address || ''
+    });
+    if (p.preferences) setPreferences(p.preferences);
+  };
+
+  // Fetch profile
+  useEffect(() => {
+    let mounted = true;
+    profileService
+      .getMe()
+      .then((p) => {
+        if (!mounted || !p) return;
+        applyProfile(p);
+        syncLocalUser(p);
+      })
+      .catch((err) => {
+        if (mounted) {
+          addToast(
+            err?.response?.data?.message || 'Không tải được hồ sơ cá nhân. Vui lòng thử lại.',
+            'error'
+          );
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoadingProfile(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Fetch bookings
   useEffect(() => {
@@ -144,7 +180,7 @@ export default function CustomerProfile() {
   }, [myBookings]);
 
   // Handle Profile Save
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!profileForm.fullName.trim()) {
       addToast('Vui lòng nhập họ và tên của bạn.', 'error');
@@ -153,25 +189,27 @@ export default function CustomerProfile() {
 
     setIsSavingProfile(true);
     try {
-      const updatedUser = {
-        ...currentUser,
+      const res = await profileService.updateMe({
         fullName: profileForm.fullName.trim(),
-        phoneNumber: profileForm.phoneNumber.trim()
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      localStorage.setItem('local_customer_profile', JSON.stringify(profileForm));
-
-      // Notify Navbar to update user display immediately
-      window.dispatchEvent(new Event('storage'));
-
-      setTimeout(() => {
-        setIsSavingProfile(false);
-        addToast('Cập nhật hồ sơ cá nhân thành công!', 'success');
-      }, 350);
-    } catch {
+        phoneNumber: profileForm.phoneNumber.replace(/\s/g, ''),
+        dateOfBirth: profileForm.dateOfBirth || null,
+        gender: profileForm.gender || null,
+        documentNumber: profileForm.documentNumber.trim(),
+        nationality: profileForm.nationality.trim(),
+        address: profileForm.address.trim()
+      });
+      if (res?.data) {
+        applyProfile(res.data);
+        syncLocalUser(res.data);
+      }
+      addToast(res?.message || 'Cập nhật hồ sơ cá nhân thành công!', 'success');
+    } catch (err) {
+      addToast(
+        err?.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.',
+        'error'
+      );
+    } finally {
       setIsSavingProfile(false);
-      addToast('Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.', 'error');
     }
   };
 
@@ -226,9 +264,17 @@ export default function CustomerProfile() {
   };
 
   // Handle Preferences Save
-  const handleSavePreferences = () => {
-    localStorage.setItem('local_user_preferences', JSON.stringify(preferences));
-    addToast('Đã lưu tùy chọn thông báo thành công!', 'success');
+  const handleSavePreferences = async () => {
+    setIsSavingPrefs(true);
+    try {
+      const res = await profileService.updatePreferences(preferences);
+      if (res?.data) setPreferences(res.data);
+      addToast(res?.message || 'Đã lưu tùy chọn thông báo thành công!', 'success');
+    } catch (err) {
+      addToast(err?.response?.data?.message || 'Lưu tùy chọn thất bại. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsSavingPrefs(false);
+    }
   };
 
   return (
@@ -271,6 +317,7 @@ export default function CustomerProfile() {
                 setProfileForm={setProfileForm}
                 onSave={handleSaveProfile}
                 isSaving={isSavingProfile}
+                isLoading={loadingProfile}
               />
             )}
 
@@ -295,6 +342,7 @@ export default function CustomerProfile() {
                 preferences={preferences}
                 setPreferences={setPreferences}
                 onSave={handleSavePreferences}
+                isSaving={isSavingPrefs}
               />
             )}
           </div>

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Loader2 } from 'lucide-react';
 
-export default function PreferencesTab({ preferences, setPreferences, onSave }) {
+export default function PreferencesTab({ preferences, setPreferences, onSave, isSaving = false }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
       <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-100">
@@ -90,9 +90,11 @@ export default function PreferencesTab({ preferences, setPreferences, onSave }) 
           <button
             type="button"
             onClick={onSave}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+            disabled={isSaving}
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-60 transition-all cursor-pointer"
           >
-            Lưu cài đặt tùy chọn
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSaving ? 'Đang lưu...' : 'Lưu cài đặt tùy chọn'}
           </button>
         </div>
       </div>
