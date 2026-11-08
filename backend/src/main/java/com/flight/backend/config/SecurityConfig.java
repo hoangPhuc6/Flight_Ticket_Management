@@ -54,6 +54,9 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.GET, "/admin/ticket-classes")
                                                 .permitAll()
 
+                                                // Hồ sơ cá nhân của khách hàng đang đăng nhập
+                                                .requestMatchers("/users/me", "/users/me/**").hasRole("CUSTOMER")
+
                                                 .requestMatchers("/orders/**").hasAnyRole("CUSTOMER", "ADMIN", "STAFF")
                                                 .requestMatchers("/reports/**").hasAnyRole("ADMIN", "STAFF")
                                                 .requestMatchers("/admin/**").hasRole("ADMIN")

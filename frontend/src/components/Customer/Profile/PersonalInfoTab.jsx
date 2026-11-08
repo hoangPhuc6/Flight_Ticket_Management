@@ -5,7 +5,8 @@ export default function PersonalInfoTab({
   profileForm,
   setProfileForm,
   onSave,
-  isSaving
+  isSaving,
+  isLoading = false
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
@@ -20,6 +21,13 @@ export default function PersonalInfoTab({
           <UserCheck className="w-5 h-5" />
         </span>
       </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Đang tải hồ sơ...</span>
+        </div>
+      )}
 
       <form onSubmit={onSave} className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -169,7 +177,7 @@ export default function PersonalInfoTab({
         <div className="pt-4 flex justify-end">
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || isLoading}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-60 transition-all cursor-pointer"
           >
             {isSaving ? (
