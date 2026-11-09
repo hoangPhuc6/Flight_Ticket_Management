@@ -1,6 +1,7 @@
 package com.flight.backend.controller;
 
 import com.flight.backend.dto.airport.CreateAirportRequest;
+import com.flight.backend.dto.airport.UpdateAirportRequest;
 import com.flight.backend.dto.ApiResponse;
 import com.flight.backend.dto.airport.AirportResponse;
 import com.flight.backend.service.AirportService;
@@ -32,6 +33,14 @@ public class AirportController {
     public ResponseEntity<ApiResponse<List<AirportResponse>>> getAll() {
         List<AirportResponse> airportList = this.airportService.getAll();
         return ApiResponse.success(airportList, "Lấy danh sách các sân bay thành công");
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<AirportResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAirportRequest req) {
+        AirportResponse resp = this.airportService.update(id, req);
+        return ApiResponse.success(resp, "Cập nhật sân bay thành công");
     }
 
     @DeleteMapping("/{id}")

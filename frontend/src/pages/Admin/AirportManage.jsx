@@ -101,26 +101,41 @@ export default function AirportManage() {
     a.city.toLowerCase().includes(search.toLowerCase()));
 
   const saveAirport = async (form) => {
-    // Sửa: backend chưa có endpoint update -> cập nhật cục bộ
-    if (modal.data) {
-      setAirports(prev => prev.map(a => a.id === modal.data.id ? { ...a, ...form } : a));
-      showToast('Đã cập nhật sân bay (cục bộ — backend chưa hỗ trợ sửa).');
-      setModal(null);
-      return;
-    }
-    // Tạo mới: validate cơ bản phía client rồi lưu DB
+    // Validate cơ bản phía client (dùng chung cho thêm và sửa)
     const code = (form.code || '').trim().toUpperCase();
     if (!code || !form.name?.trim() || !form.city?.trim() || !form.country?.trim()) {
       showToast('Vui lòng nhập đầy đủ Mã IATA, Tên, Thành phố, Quốc gia.', 'error');
       return;
     }
+    if (!/^[A-Z]{3}$/.test(code)) {
+      showToast('Mã IATA phải gồm đúng 3 chữ cái (VD: SGN).', 'error');
+      return;
+    }
+    const payload = {
+      airportCode: code,
+      name: form.name.trim(),
+      city: form.city.trim(),
+      country: form.country.trim(),
+    };
+
+    // SỬA
+    if (modal.data) {
+      try {
+        const saved = await airportService.update(modal.data.dbId, payload);
+        // terminals/status chưa có trong DB -> giữ giá trị trên form
+        const mapped = { ...mapDbAirport(saved), terminals: form.terminals, status: form.status };
+        setAirports(prev => prev.map(a => a.id === modal.data.id ? mapped : a));
+        showToast('Đã cập nhật sân bay!');
+        setModal(null);
+      } catch (e) {
+        showToast(errMsg(e, 'Cập nhật sân bay thất bại.'), 'error');
+      }
+      return;
+    }
+
+    // TẠO MỚI
     try {
-      const saved = await airportService.create({
-        airportCode: code,
-        name: form.name.trim(),
-        city: form.city.trim(),
-        country: form.country.trim(),
-      });
+      const saved = await airportService.create(payload);
       const mapped = { ...mapDbAirport(saved), terminals: form.terminals, status: form.status };
       setAirports(prev => {
         const rest = prev.filter(a => String(a.code).toUpperCase() !== code);

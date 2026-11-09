@@ -126,39 +126,37 @@ export default function AirplaneManage() {
 
   const saveAirplane = async (form) => {
     const code = (form.code || '').trim().toUpperCase();
-    if (!/^[A-Z0-9-]{2,20}$/.test(code)) {
-      showToast('Mã máy bay 2-20 ký tự (A-Z, 0-9, dấu gạch ngang).', 'error');
+    if (!/^[A-Z0-9-]{2,10}$/.test(code)) {
+      showToast('Mã máy bay 2-10 ký tự (A-Z, 0-9, dấu gạch ngang).', 'error');
       return;
     }
 
-    // SỬA — backend chưa có endpoint update -> cập nhật cục bộ
-    if (modal.data) {
-      const al = airlines.find(x => String(x.id) === String(form.airlineId));
-      const md = models.find(x => String(x.id) === String(form.modelId));
-      setAirplanes(prev => prev.map(a => a.id === modal.data._id ? {
-        ...a, code, status: form.status,
-        airlineName: al?.airlineName || a.airlineName,
-        modelName: md?.modelName || a.modelName,
-        modelId: md?.id ?? a.modelId,
-        totalSeats: md?.totalSeats ?? a.totalSeats,
-      } : a));
-      showToast('Đã cập nhật máy bay (cục bộ — backend chưa hỗ trợ sửa).');
-      setModal(null);
-      return;
-    }
-
-    // TẠO MỚI
     if (!form.airlineId || !form.modelId) {
       showToast('Vui lòng chọn hãng bay và model.', 'error');
       return;
     }
+    const payload = {
+      airplaneCode: code,
+      airlineId: Number(form.airlineId),
+      modelId: Number(form.modelId),
+      status: form.status,
+    };
+
+    // SỬA
+    if (modal.data) {
+      try {
+        const saved = await airplaneService.update(modal.data.dbId, payload);
+        const mapped = mapDbAirplane(saved);
+        setAirplanes(prev => prev.map(a => a.id === modal.data._id ? mapped : a));
+        showToast('Đã cập nhật máy bay!');
+        setModal(null);
+      } catch (e) { showToast(errMsg(e, 'Cập nhật máy bay thất bại.'), 'error'); }
+      return;
+    }
+
+    // TẠO MỚI
     try {
-      const saved = await airplaneService.create({
-        airplaneCode: code,
-        airlineId: Number(form.airlineId),
-        modelId: Number(form.modelId),
-        status: form.status,
-      });
+      const saved = await airplaneService.create(payload);
       const mapped = mapDbAirplane(saved);
       setAirplanes(prev => {
         const rest = prev.filter(a => String(a.code).toUpperCase() !== code);
@@ -190,6 +188,7 @@ export default function AirplaneManage() {
     modelId: a.modelId || models.find(x => x.modelName === a.modelName)?.id || '',
     status: a.status,
     _id: a.id,
+    dbId: a.dbId,
   });
 
   return (
