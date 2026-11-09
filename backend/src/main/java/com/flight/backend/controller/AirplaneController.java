@@ -1,6 +1,7 @@
 package com.flight.backend.controller;
 
 import com.flight.backend.dto.airplane.CreateAirplaneRequest;
+import com.flight.backend.dto.airplane.UpdateAirplaneRequest;
 import com.flight.backend.dto.airplane.AirplaneResponse;
 import com.flight.backend.service.AirplaneService;
 
@@ -32,6 +33,13 @@ public class AirplaneController {
     @GetMapping("/{id}")
     public AirplaneResponse getById(@PathVariable Long id) {
         return airplaneService.getById(id);
+    }
+
+    @PutMapping("/{id}")
+    public AirplaneResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAirplaneRequest request) {
+        return airplaneService.update(id, request);
     }
 
     @DeleteMapping("/{id}")

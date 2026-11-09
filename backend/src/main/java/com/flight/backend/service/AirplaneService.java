@@ -2,6 +2,7 @@ package com.flight.backend.service;
 
 import com.flight.backend.dto.airplane.AirplaneResponse;
 import com.flight.backend.dto.airplane.CreateAirplaneRequest;
+import com.flight.backend.dto.airplane.UpdateAirplaneRequest;
 import com.flight.backend.entity.Airline;
 import com.flight.backend.entity.Airplane;
 import com.flight.backend.entity.AirplaneModel;
@@ -82,6 +83,51 @@ public class AirplaneService {
         Airplane saved = airplaneRepository.save(airplane);
 
         return toResponse(saved);
+    }
+
+    // UPDATE
+    @Transactional
+    public AirplaneResponse update(Long id, UpdateAirplaneRequest request) {
+
+        Airplane airplane = airplaneRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Máy bay không tồn tại"));
+
+        String airplaneCode =
+                request.getAirplaneCode().trim().toUpperCase();
+
+        if (Boolean.TRUE.equals(
+                airplaneRepository.existsByAirplaneCodeAndIdNot(airplaneCode, id))) {
+            throw new RuntimeException(
+                    "Mã máy bay '" + airplaneCode + "' đã tồn tại");
+        }
+
+        Airline airline = airlineRepository.findById(request.getAirlineId())
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy hãng bay"));
+
+        AirplaneModel airplaneModel = airplaneModelRepository.findById(request.getModelId())
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy model máy bay"));
+
+        // Sơ đồ ghế của chuyến bay được sinh từ model -> không cho đổi model/hãng
+        // khi máy bay đã được gán vào chuyến bay
+        boolean usedByFlight = !flightRepository.findByAirplaneId(id).isEmpty();
+        boolean modelChanged = airplane.getModel() == null
+                || !airplaneModel.getId().equals(airplane.getModel().getId());
+        boolean airlineChanged = airplane.getAirline() == null
+                || !airline.getId().equals(airplane.getAirline().getId());
+        if (usedByFlight && (modelChanged || airlineChanged)) {
+            throw new RuntimeException(
+                    "Không thể đổi model/hãng bay: máy bay đang được dùng trong chuyến bay.");
+        }
+
+        airplane.setAirplaneCode(airplaneCode);
+        airplane.setAirline(airline);
+        airplane.setModel(airplaneModel);
+        airplane.setStatus(request.getStatus());
+
+        return toResponse(airplaneRepository.save(airplane));
     }
 
     // GET ALL

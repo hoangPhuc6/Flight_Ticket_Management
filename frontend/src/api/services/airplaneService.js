@@ -13,6 +13,10 @@ export const airplaneService = {
     const res = await api.post('/admin/airplanes', data);
     return res.data?.data || res.data;
   },
+  update: async (id, data) => {
+    const res = await api.put(`/admin/airplanes/${id}`, data);
+    return res.data?.data || res.data;
+  },
   delete: async (id) => {
     const res = await api.delete(`/admin/airplanes/${id}`);
     return res.data?.data || res.data;

@@ -2,11 +2,13 @@ package com.flight.backend.service;
 
 import com.flight.backend.dto.airport.AirportResponse;
 import com.flight.backend.dto.airport.CreateAirportRequest;
+import com.flight.backend.dto.airport.UpdateAirportRequest;
 import com.flight.backend.entity.Airport;
 import com.flight.backend.repository.AirportRepository;
 import com.flight.backend.repository.FlightStopRepository;
 import com.flight.backend.repository.RouteRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -76,6 +78,30 @@ public class AirportService {
         return res;
     }
 
+    @Transactional
+    public AirportResponse update(Long id, UpdateAirportRequest req) {
+
+        Airport airport = airportRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy sân bay"));
+
+        String airportCode =
+                req.getAirportCode().trim().toUpperCase();
+
+        if (airportRepository.existsByAirportCodeAndIdNot(airportCode, id)) {
+            throw new RuntimeException(
+                    "Mã sân bay '" + airportCode + "' đã tồn tại");
+        }
+
+        // Route/FlightStop tham chiếu theo id nên đổi mã/tên không ảnh hưởng dữ liệu cũ
+        airport.setAirportCode(airportCode);
+        airport.setName(req.getName().trim());
+        airport.setCity(req.getCity().trim());
+        airport.setCountry(req.getCountry().trim());
+
+        return toResponse(airportRepository.save(airport));
+    }
+
     public List<AirportResponse> getAll() {
 
         return airportRepository.findAll()
@@ -97,5 +123,15 @@ public class AirportService {
         return airportRepository.findById(id)
                 .orElseThrow(() ->
                         new RuntimeException("Không tìm thấy sân bay"));
+    }
+
+    private AirportResponse toResponse(Airport a) {
+        AirportResponse res = new AirportResponse();
+        res.setId(a.getId());
+        res.setAirportCode(a.getAirportCode());
+        res.setName(a.getName());
+        res.setCity(a.getCity());
+        res.setCountry(a.getCountry());
+        return res;
     }
 }
