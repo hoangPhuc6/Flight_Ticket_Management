@@ -66,36 +66,7 @@ function SignInForm() {
         } catch (error) {
             console.error('Login error:', error);
             if (!error.response) {
-                // Tự động fallback sang Mock login nếu không kết nối được server (offline)
-                const storedLogins = JSON.parse(localStorage.getItem('local_staff_logins') || '{}');
-                const adminPass = storedLogins['admin@easyflight.vn'] || 'admin123';
-                const staffPass = storedLogins['staff@easyflight.vn'] || 'staff123';
-                const customerPass = storedLogins['customer@gmail.com'] || '123';
-
-                const mockUsers = {
-                    'admin@easyflight.vn': { password: 'admin123', role: 'ADMIN', token: 'mock-admin-token', fullName: 'Quản trị viên' },
-                    'staff@easyflight.vn': { password: 'staff123', role: 'STAFF', token: 'mock-staff-token', fullName: 'Nhân viên EasyFlight' },
-                    'customer@gmail.com': { password: '123', role: 'CUSTOMER', token: 'mock-customer-token', fullName: 'Khách hàng mẫu' }
-                };
-
-                const matchedUser = mockUsers[cleanEmail];
-                if (matchedUser && matchedUser.password === password) {
-                    console.log('Server offline. Falling back to local mock login for:', cleanEmail);
-                    localStorage.setItem('token', matchedUser.token);
-                    localStorage.setItem('user', JSON.stringify({
-                        email: cleanEmail,
-                        role: matchedUser.role,
-                        fullName: matchedUser.fullName
-                    }));
-                    if (matchedUser.role === 'ADMIN') {
-                        navigate('/admin/dashboard');
-                    } else if (matchedUser.role === 'STAFF') {
-                        navigate('/staff/dashboard');
-                    } else {
-                        navigate(redirectTo);
-                    }
-                    return;
-                }
+                // Không kết nối được server -> báo lỗi, KHÔNG tự đăng nhập giả
                 setErrorMsg('Không thể kết nối đến server. Vui lòng kiểm tra Backend đã khởi động chưa (cổng 5000)!');
             } else {
                 setErrorMsg(error.response?.data?.message || 'Sai email hoặc mật khẩu!');
