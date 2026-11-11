@@ -307,6 +307,18 @@ public class BookingService {
     @Transactional
     public BookingResponse confirmPaymentByBooking(Long bookingId) {
         Booking booking = getBookingById(bookingId);
+        // Chỉ xác nhận được đơn đang chờ xác nhận; đơn đã huỷ/hết hạn/đã thanh toán thì chặn
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            BookingStatus status = booking.getStatus();
+            throw new RuntimeException(status == null
+                    ? "Trạng thái đơn đặt không hợp lệ để xác nhận thanh toán."
+                    : switch (status) {
+                        case CANCELLED -> "Đơn đặt đã bị hủy, không thể xác nhận thanh toán.";
+                        case EXPIRED -> "Đơn đặt đã hết hạn, không thể xác nhận thanh toán.";
+                        case PAID, CONFIRMED -> "Đơn đặt đã được thanh toán trước đó.";
+                        default -> "Trạng thái đơn đặt không hợp lệ để xác nhận thanh toán.";
+                    });
+        }
         Payment payment = booking.getPayment();
         if (payment == null) {
             throw new RuntimeException("Đơn đặt chưa có thông tin thanh toán.");
