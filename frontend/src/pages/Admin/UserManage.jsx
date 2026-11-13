@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, CheckCircle, Shield, UserCheck } from 'lucide-react';
-import { ADMIN_STAFF } from '../../data/adminMockData';
 import { staffService } from '../../api/services/staffService';
 
 const ROLE_STYLE = { ADMIN: 'bg-red-50 text-red-700 border border-red-200', STAFF: 'bg-violet-50 text-violet-700 border border-violet-200', AGENT: 'bg-blue-50 text-blue-700 border border-blue-200' };
@@ -10,7 +9,7 @@ const DEPTS = ['Ban Giám đốc', 'Vận hành mặt đất', 'Check-in', 'Chă
 const errMsg = (e, fallback) =>
   e?.response?.data?.message || e?.message || fallback || 'Có lỗi xảy ra';
 
-// StaffResponse (DB) -> shape dùng trong bảng mock
+// StaffResponse (DB) -> shape dùng trong bảng
 const mapDbStaff = (s) => ({
   id: `db-${s.id}`,
   dbId: s.id,
@@ -21,17 +20,10 @@ const mapDbStaff = (s) => ({
   department: s.department,
   status: s.status,
   joinDate: s.hireDate,
+  hireDate: s.hireDate, // form sửa đọc field này
   lastLogin: '—',
   staffCode: s.staffCode,
 });
-
-// Gộp mock + DB, dedupe theo email (ưu tiên DB)
-const mergeStaff = (mock, db) => {
-  const map = new Map();
-  mock.forEach(s => map.set(String(s.email).toLowerCase(), { ...s, dbId: s.dbId ?? null }));
-  db.forEach(s => map.set(String(s.email).toLowerCase(), s));
-  return Array.from(map.values());
-};
 
 function Toast({ msg, type, onClose }) {
   if (!msg) return null;
@@ -118,7 +110,9 @@ function StaffModal({ initial, onSave, onClose }) {
 }
 
 export default function UserManage() {
-  const [staff, setStaff] = useState(ADMIN_STAFF.map(s => ({ ...s, dbId: null })));
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [modal, setModal] = useState(null);
@@ -128,16 +122,18 @@ export default function UserManage() {
     setTimeout(() => setToast({ msg: '', type }), 3000);
   };
 
-  // Tải nhân viên thật từ DB rồi gộp với mock
+  // Tải nhân viên từ DB
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const res = await staffService.getAll();
         const dbStaff = (res.data?.data || res.data || []).map(mapDbStaff);
-        if (mounted) setStaff(mergeStaff(ADMIN_STAFF, dbStaff));
-      } catch {
-        // API lỗi -> giữ nguyên mock
+        if (mounted) setStaff(dbStaff);
+      } catch (e) {
+        if (mounted) setLoadError(errMsg(e, 'Không tải được danh sách nhân viên.'));
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
@@ -163,20 +159,14 @@ export default function UserManage() {
 
     // SỬA
     if (modal.data) {
-      if (modal.data.dbId) {
-        try {
-          // password @NotBlank ở DTO nhưng update không dùng tới -> gửi placeholder
-          const res = await staffService.update(modal.data.dbId, { ...basePayload, password: form.password?.trim() || 'unchanged' });
-          const mapped = { ...mapDbStaff(res.data), id: modal.data.id, role: form.role, lastLogin: modal.data.lastLogin };
-          setStaff(prev => prev.map(s => s.id === modal.data.id ? mapped : s));
-          showToast('Đã cập nhật nhân viên trong DB!');
-          setModal(null);
-        } catch (e) { showToast(errMsg(e, 'Cập nhật nhân viên thất bại.'), 'error'); }
-      } else {
-        setStaff(prev => prev.map(s => s.id === modal.data.id ? { ...s, ...form } : s));
-        showToast('Đã cập nhật nhân viên (cục bộ).');
+      try {
+        // password @NotBlank ở DTO nhưng update không dùng tới -> gửi placeholder
+        const res = await staffService.update(modal.data.dbId, { ...basePayload, password: form.password?.trim() || 'unchanged' });
+        const mapped = { ...mapDbStaff(res.data), id: modal.data.id, role: form.role, lastLogin: modal.data.lastLogin };
+        setStaff(prev => prev.map(s => s.id === modal.data.id ? mapped : s));
+        showToast('Đã cập nhật nhân viên!');
         setModal(null);
-      }
+      } catch (e) { showToast(errMsg(e, 'Cập nhật nhân viên thất bại.'), 'error'); }
       return;
     }
 
@@ -199,25 +189,21 @@ export default function UserManage() {
 
   const deactivate = async (id) => {
     const s = staff.find(x => x.id === id);
-    if (s?.dbId) {
-      try {
-        await staffService.update(s.dbId, {
-          fullName: s.fullName,
-          email: s.email,
-          password: 'unchanged',
-          phoneNumber: (s.phone || '').replace(/\s+/g, ''),
-          staffCode: Number(s.staffCode),
-          department: s.department,
-          hireDate: s.joinDate,
-          status: 'INACTIVE',
-        });
-        setStaff(prev => prev.map(x => x.id === id ? { ...x, status: 'INACTIVE' } : x));
-        showToast('Đã vô hiệu hóa tài khoản (DB).');
-      } catch (e) { showToast(errMsg(e, 'Thao tác thất bại.'), 'error'); }
-    } else {
+    if (!s) return;
+    try {
+      await staffService.update(s.dbId, {
+        fullName: s.fullName,
+        email: s.email,
+        password: 'unchanged',
+        phoneNumber: (s.phone || '').replace(/\s+/g, ''),
+        staffCode: Number(s.staffCode),
+        department: s.department,
+        hireDate: s.joinDate,
+        status: 'INACTIVE',
+      });
       setStaff(prev => prev.map(x => x.id === id ? { ...x, status: 'INACTIVE' } : x));
-      showToast('Đã vô hiệu hóa tài khoản (cục bộ).');
-    }
+      showToast('Đã vô hiệu hóa tài khoản.');
+    } catch (e) { showToast(errMsg(e, 'Thao tác thất bại.'), 'error'); }
   };
 
   const counts = { ALL: staff.length, ADMIN: staff.filter(s => s.role === 'ADMIN').length, STAFF: staff.filter(s => s.role === 'STAFF').length, AGENT: staff.filter(s => s.role === 'AGENT').length };
@@ -273,6 +259,13 @@ export default function UserManage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
+            {(loading || loadError || filtered.length === 0) && (
+              <tr>
+                <td colSpan={7} className={`px-5 py-12 text-center text-sm ${loadError ? 'text-red-600' : 'text-slate-400'}`}>
+                  {loading ? 'Đang tải danh sách nhân viên...' : loadError || 'Không có nhân viên nào.'}
+                </td>
+              </tr>
+            )}
             {filtered.map(s => (
               <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
                 <td className="px-5 py-3.5 max-w-[200px]">

@@ -1,36 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Eye, Info, ShieldAlert, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { Info, ShieldAlert, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { regulationService } from '../../api/services/regulationService';
-import { REGULATIONS as INIT_REGS } from '../../data/adminMockData';
-
-const GROUP_COLORS = { 
-  'Chuyến bay': 'bg-violet-50 text-violet-700 border-violet-200', 
-  'Đặt vé': 'bg-blue-50 text-blue-700 border-blue-200', 
-  'Thanh toán': 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-};
+import { REGULATION_GROUP_COLORS as GROUP_COLORS, mapRegulation } from '../../constants/regulations';
 
 export default function RegulationsPage() {
   const { data: dbRegs, loading, error } = useApi(regulationService.getAll, []);
 
-  const regs = dbRegs && dbRegs.length > 0
-    ? dbRegs.map(r => ({
-        id: r.id,
-        label: r.regulationName,
-        key: r.settingKey,
-        value: r.settingValue,
-        description: r.description || `Đơn vị tính: ${r.unit || '—'}`,
-        group: r.settingKey.includes('AIRPORT') || r.settingKey.includes('FLIGHT') || r.settingKey.includes('STOP')
-          ? 'Chuyến bay'
-          : r.settingKey.includes('BOOKING') || r.settingKey.includes('TICKET') || r.settingKey.includes('SEAT')
-            ? 'Đặt vé'
-            : 'Thanh toán'
-      }))
-    : INIT_REGS;
+  const regs = (Array.isArray(dbRegs) ? dbRegs : []).map(r => {
+    const reg = mapRegulation(r);
+    return { ...reg, description: reg.description || `Đơn vị tính: ${reg.unit || '—'}` };
+  });
 
   const groups = [...new Set(regs.map(r => r.group))];
 
-  if (loading) {
+  if (loading && !dbRegs) {
     return (
       <div className="flex flex-col items-center justify-center py-32 space-y-4">
         <Loader2 className="w-10 h-10 animate-spin text-violet-500" />
@@ -62,6 +45,15 @@ export default function RegulationsPage() {
           </p>
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /> {error}
+        </div>
+      )}
+      {!error && regs.length === 0 && (
+        <p className="py-16 text-center text-sm text-slate-400">Chưa có quy định nào trong hệ thống.</p>
+      )}
 
       {/* Groups */}
       <div className="space-y-5">
