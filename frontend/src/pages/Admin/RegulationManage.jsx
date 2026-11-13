@@ -1,36 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Save, X, CheckCircle, Info } from 'lucide-react';
-import { REGULATIONS as INIT_REGS } from '../../data/adminMockData';
+import { Save, X, CheckCircle, Info, Loader2, AlertCircle } from 'lucide-react';
 import { regulationService } from '../../api/services/regulationService';
-
-const GROUP_COLORS = { 'Chuyến bay': 'bg-violet-50 text-violet-700 border-violet-200', 'Đặt vé': 'bg-blue-50 text-blue-700 border-blue-200', 'Thanh toán': 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+import { REGULATION_GROUP_COLORS as GROUP_COLORS, mapRegulation } from '../../constants/regulations';
 
 const errMsg = (e, fallback) =>
   e?.response?.data?.message || e?.message || fallback || 'Có lỗi xảy ra';
-
-// RegulationResponse (DB) -> shape dùng trong UI (giữ group/label/type theo mock nếu trùng settingKey)
-const mapDbReg = (c, mockByKey) => {
-  const mock = mockByKey.get(c.settingKey);
-  return {
-    id: `db-${c.id}`,
-    dbId: c.id,
-    group: mock?.group || 'Cấu hình khác',
-    key: c.settingKey,
-    label: c.regulationName,
-    value: String(c.settingValue ?? ''),
-    type: 'NUMBER',
-    description: c.description || mock?.description || '',
-    unit: c.unit || '',
-  };
-};
-
-// Gộp mock + DB, dedupe theo settingKey (ưu tiên DB)
-const mergeRegs = (mock, db) => {
-  const map = new Map();
-  mock.forEach(r => map.set(r.key, { ...r, dbId: r.dbId ?? null, unit: r.unit ?? '' }));
-  db.forEach(r => map.set(r.key, r));
-  return Array.from(map.values());
-};
 
 function Toast({ msg, type, onClose }) {
   if (!msg) return null;
@@ -46,7 +20,9 @@ function Toast({ msg, type, onClose }) {
 }
 
 export default function RegulationManage() {
-  const [regs, setRegs] = useState(INIT_REGS.map(r => ({ ...r, dbId: null, unit: '' })));
+  const [regs, setRegs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [edited, setEdited] = useState({});
   const [toast, setToast] = useState({ msg: '', type: 'success' });
   const showToast = (msg, type = 'success') => {
@@ -54,17 +30,18 @@ export default function RegulationManage() {
     setTimeout(() => setToast({ msg: '', type }), 3000);
   };
 
-  // Tải quy định thật từ DB rồi gộp với mock
+  // Tải quy định từ DB
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const res = await regulationService.getAll();
-        const mockByKey = new Map(INIT_REGS.map(r => [r.key, r]));
-        const dbRegs = (res.data?.data || res.data || []).map(c => mapDbReg(c, mockByKey));
-        if (mounted) setRegs(mergeRegs(INIT_REGS, dbRegs));
-      } catch {
-        // API lỗi -> giữ nguyên mock
+        const dbRegs = (res.data?.data || res.data || []).map(mapRegulation);
+        if (mounted) setRegs(dbRegs);
+      } catch (e) {
+        if (mounted) setLoadError(errMsg(e, 'Không tải được danh sách quy định.'));
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
@@ -85,7 +62,7 @@ export default function RegulationManage() {
   const handleSave = async () => {
     const ids = Object.keys(edited);
     let savedCount = 0, firstErr = null;
-    const newDbIds = {}; // reg.id (cũ) -> dbId vừa tạo
+    const savedIds = new Set();
     for (const id of ids) {
       const reg = regs.find(r => r.id === id);
       if (!reg) continue;
@@ -97,25 +74,16 @@ export default function RegulationManage() {
         description: reg.description || '',
       };
       try {
-        if (reg.dbId) {
-          await regulationService.update(reg.dbId, payload);
-        } else {
-          // Chưa có trong DB -> tạo mới để quy định thực sự có hiệu lực ở backend
-          const res = await regulationService.create(payload);
-          const created = res?.data?.data || res?.data || res;
-          if (created?.id) newDbIds[reg.id] = created.id;
-        }
+        await regulationService.update(reg.dbId, payload);
+        savedIds.add(id);
         savedCount++;
       } catch (e) {
         firstErr = firstErr || errMsg(e);
       }
     }
-    setRegs(prev => prev.map(r => {
-      let next = edited[r.id] !== undefined ? { ...r, value: edited[r.id] } : r;
-      if (newDbIds[r.id]) next = { ...next, dbId: newDbIds[r.id], id: `db-${newDbIds[r.id]}` };
-      return next;
-    }));
-    setEdited({});
+    // Chỉ cập nhật giá trị đã lưu thành công; giữ lại các thay đổi lưu lỗi để người dùng thử lại
+    setRegs(prev => prev.map(r => savedIds.has(r.id) ? { ...r, value: edited[r.id] } : r));
+    setEdited(prev => Object.fromEntries(Object.entries(prev).filter(([id]) => !savedIds.has(id))));
     if (firstErr) showToast(`Có lỗi khi lưu: ${firstErr}`, 'error');
     else showToast(`Đã lưu ${savedCount} quy định vào DB.`);
   };
@@ -148,6 +116,20 @@ export default function RegulationManage() {
         <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
         <p className="text-sm text-blue-700">Các thay đổi sẽ được áp dụng ngay sau khi lưu. Vui lòng kiểm tra kỹ trước khi xác nhận.</p>
       </div>
+
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
+          <Loader2 className="w-5 h-5 animate-spin text-violet-500" /> Đang tải cấu hình...
+        </div>
+      )}
+      {!loading && loadError && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /> {loadError}
+        </div>
+      )}
+      {!loading && !loadError && regs.length === 0 && (
+        <p className="py-16 text-center text-sm text-slate-400">Chưa có quy định nào trong hệ thống.</p>
+      )}
 
       {/* Groups */}
       {groups.map(group => (
