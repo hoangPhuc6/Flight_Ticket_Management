@@ -1,4 +1,4 @@
-﻿package com.flight.backend.service;
+package com.flight.backend.service;
 
 import com.flight.backend.dto.booking.BookingResponse;
 import com.flight.backend.dto.booking.CreateBookingRequest;
@@ -199,9 +199,23 @@ public class BookingService {
 
     @Transactional
     public BookingResponse getBookingResponse(Long id) {
+        return getBookingResponse(id, null);
+    }
+
+    // customerEmail != null: khách hàng -> chỉ được xem đơn của chính mình.
+    // customerEmail == null: Staff/Admin -> xem mọi đơn.
+    @Transactional
+    public BookingResponse getBookingResponse(Long id, String customerEmail) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(
                         "Booking not found"));
+        if (customerEmail != null) {
+            User owner = booking.getCustomer();
+            if (owner == null || owner.getEmail() == null
+                    || !owner.getEmail().equalsIgnoreCase(customerEmail)) {
+                throw new RuntimeException("Bạn không có quyền xem đơn đặt chỗ này.");
+            }
+        }
         return this.bookingMapper.toResponse(booking);
     }
 
