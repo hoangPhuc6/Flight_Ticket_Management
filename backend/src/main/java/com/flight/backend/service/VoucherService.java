@@ -5,7 +5,9 @@ import com.flight.backend.dto.voucher.ApplyVoucherResponse;
 import com.flight.backend.dto.voucher.CreateVoucherRequest;
 import com.flight.backend.entity.Booking;
 import com.flight.backend.entity.BookingVoucher;
+import com.flight.backend.entity.User;
 import com.flight.backend.entity.Voucher;
+import com.flight.backend.entity.enums.BookingStatus;
 import com.flight.backend.entity.enums.VoucherDiscountType;
 import com.flight.backend.entity.enums.VoucherStatus;
 import com.flight.backend.repository.BookingRepository;
@@ -253,16 +255,28 @@ public class VoucherService {
         return new ApplyVoucherResponse(total, discount, finalAmount);
     }
 
-    // APPLY VOUCHER
+    // APPLY VOUCHER — chỉ chủ đơn được áp mã, và chỉ khi đơn còn chờ thanh toán (PENDING)
     @Transactional
     public ApplyVoucherResponse applyVoucher(
-            ApplyVoucherRequest req) {
+            ApplyVoucherRequest req, String customerEmail) {
 
         Booking booking = bookingRepository
                 .findById(req.getBookingId())
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Booking not found"));
+
+        User owner = booking.getCustomer();
+        if (customerEmail == null || owner == null || owner.getEmail() == null
+                || !owner.getEmail().equalsIgnoreCase(customerEmail)) {
+            throw new RuntimeException(
+                    "Bạn không có quyền áp mã giảm giá cho đơn đặt chỗ này.");
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException(
+                    "Chỉ có thể áp mã giảm giá cho đơn đặt chỗ đang chờ thanh toán.");
+        }
 
         Voucher voucher = voucherRepository
                 .findByVoucherCode(

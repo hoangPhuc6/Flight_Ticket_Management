@@ -16,6 +16,7 @@ import com.flight.backend.entity.Flight;
 import com.flight.backend.entity.FlightSeat;
 import com.flight.backend.entity.Seat;
 import com.flight.backend.entity.Ticket;
+import com.flight.backend.entity.User;
 import com.flight.backend.entity.enums.FlightSeatStatus;
 import com.flight.backend.repository.BookingRepository;
 import com.flight.backend.repository.FlightRepository;
@@ -84,10 +85,26 @@ public class SeatSelectionService {
     }
 
     // Gán ghế cho từng vé trong đơn
+    // customerEmail != null: khách tự chọn ghế -> chỉ được chọn ghế cho đơn của chính mình.
+    // customerEmail == null: Staff/Admin chọn hộ -> không ràng buộc quyền sở hữu.
     @Transactional
-    public void selectSeats(Long bookingId, SelectSeatsRequest request) {
+    public void selectSeats(Long bookingId, SelectSeatsRequest request, String customerEmail) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đặt vé"));
+
+        if (customerEmail != null) {
+            User owner = booking.getCustomer();
+            if (owner == null || owner.getEmail() == null
+                    || !owner.getEmail().equalsIgnoreCase(customerEmail)) {
+                throw new RuntimeException("Bạn không có quyền chọn ghế cho đơn đặt chỗ này.");
+            }
+        }
+
+        // Chỉ được chọn ghế sau khi đơn đã được xác nhận thanh toán (PAID/CONFIRMED)
+        if (booking.getStatus() != BookingStatus.PAID && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException(
+                    "Chỉ có thể chọn ghế cho đơn đặt chỗ đã được xác nhận thanh toán.");
+        }
 
         if (request == null || request.getAssignments() == null || request.getAssignments().isEmpty()) {
             throw new RuntimeException("Chưa chọn ghế nào.");
@@ -144,9 +161,7 @@ public class SeatSelectionService {
             flightSeatRepository.save(target);
         }
 
-        // Nếu đơn đã thanh toán, tự động gửi email vé điện tử cập nhật số ghế
-        if (booking.getStatus() == BookingStatus.PAID || booking.getStatus() == BookingStatus.CONFIRMED) {
-            emailService.sendETicketEmail(booking);
-        }
+        // Đơn đã thanh toán (đã kiểm tra ở trên) -> gửi email vé điện tử cập nhật số ghế
+        emailService.sendETicketEmail(booking);
     }
 }
