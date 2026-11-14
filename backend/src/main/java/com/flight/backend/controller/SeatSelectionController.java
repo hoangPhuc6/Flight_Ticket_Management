@@ -3,6 +3,7 @@ package com.flight.backend.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,8 +37,14 @@ public class SeatSelectionController {
     @PostMapping("/bookings/{bookingId}/select-seats")
     public ResponseEntity<ApiResponse<String>> selectSeats(
             @PathVariable Long bookingId,
-            @RequestBody SelectSeatsRequest request) {
-        seatSelectionService.selectSeats(bookingId, request);
+            @RequestBody SelectSeatsRequest request,
+            Authentication authentication) {
+        // Staff/Admin chọn ghế hộ mọi đơn; khách hàng chỉ được chọn ghế cho đơn của chính mình.
+        boolean isStaffOrAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                        || a.getAuthority().equals("ROLE_STAFF"));
+        String customerEmail = (!isStaffOrAdmin && authentication != null) ? authentication.getName() : null;
+        seatSelectionService.selectSeats(bookingId, request, customerEmail);
         return ApiResponse.success("OK", "Đặt chỗ ngồi thành công");
     }
 }

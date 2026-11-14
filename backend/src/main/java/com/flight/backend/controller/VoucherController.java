@@ -5,6 +5,7 @@ import com.flight.backend.entity.Voucher;
 import com.flight.backend.service.VoucherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,8 +38,11 @@ public class VoucherController {
     }
 
     @PostMapping("/apply")
-    public ApplyVoucherResponse apply(@RequestBody ApplyVoucherRequest req) {
-        return voucherService.applyVoucher(req);
+    public ApplyVoucherResponse apply(@RequestBody ApplyVoucherRequest req,
+                                      Authentication authentication) {
+        // Chỉ CUSTOMER được gọi (SecurityConfig) -> luôn kiểm tra quyền sở hữu đơn
+        String customerEmail = authentication != null ? authentication.getName() : null;
+        return voucherService.applyVoucher(req, customerEmail);
     }
 
     // Xem trước mức giảm (chưa tạo booking) — dùng ở trang nhập thông tin hành khách
