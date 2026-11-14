@@ -65,8 +65,14 @@ public class BookingController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BookingResponse>> getBookingById(@PathVariable Long id) {
-        BookingResponse resp = this.bookingService.getBookingResponse(id);
+    public ResponseEntity<ApiResponse<BookingResponse>> getBookingById(
+            @PathVariable Long id, Authentication authentication) {
+        // Staff/Admin xem mọi đơn; khách hàng chỉ được xem đơn của chính mình.
+        boolean isStaffOrAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                        || a.getAuthority().equals("ROLE_STAFF"));
+        String customerEmail = (!isStaffOrAdmin && authentication != null) ? authentication.getName() : null;
+        BookingResponse resp = this.bookingService.getBookingResponse(id, customerEmail);
         return ApiResponse.success(resp, "Lấy booking thành công");
     }
 

@@ -134,6 +134,18 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.POST, "/vouchers/preview").hasRole("CUSTOMER")
                                                 .requestMatchers("/vouchers", "/vouchers/", "/vouchers/**")
                                                 .hasAnyRole("ADMIN", "STAFF")
+
+                                                // ================= BOOKING / PAYMENT =================
+                                                // Chỉ Staff/Admin được xác nhận thanh toán, cho hết hạn và xem toàn bộ booking.
+                                                // (GET /bookings/my và GET /bookings/{id} không bị ảnh hưởng.)
+                                                .requestMatchers(HttpMethod.POST, "/bookings/*/confirm-payment")
+                                                .hasAnyRole("ADMIN", "STAFF")
+                                                .requestMatchers(HttpMethod.PUT, "/bookings/*/expire")
+                                                .hasAnyRole("ADMIN", "STAFF")
+                                                .requestMatchers(HttpMethod.GET, "/bookings", "/bookings/")
+                                                .hasAnyRole("ADMIN", "STAFF")
+                                                .requestMatchers("/payments", "/payments/**")
+                                                .hasAnyRole("ADMIN", "STAFF")
                                                 .anyRequest().authenticated())
                                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
