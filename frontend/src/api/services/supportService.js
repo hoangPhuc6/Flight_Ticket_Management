@@ -84,57 +84,5 @@ export const supportService = {
   rejectRequest: async (id) => {
     saveLocalSupportState(id, { status: 'REJECTED' });
     return { id, status: 'REJECTED' };
-  },
-  getComplaints: async () => {
-    try {
-      const res = await api.get('/complaints');
-      return res.data?.data || res.data || [];
-    } catch (err) {
-      console.warn("Lỗi kết nối API /complaints, chuyển sang chế độ lưu trữ cục bộ (localStorage):", err.message);
-      const local = localStorage.getItem('local_complaints');
-      return local ? JSON.parse(local) : [];
-    }
-  },
-  saveLocalComplaints: (complaints) => {
-    localStorage.setItem('local_complaints', JSON.stringify(complaints));
-  },
-  updateComplaintStatus: async (id, status) => {
-    try {
-      const res = await api.patch(`/complaints/${id}/status`, null, { params: { status } });
-      return res.data?.data || res.data;
-    } catch (err) {
-      console.warn("Lỗi kết nối API cập nhật trạng thái khiếu nại, thực hiện cập nhật cục bộ:", err.message);
-      const local = localStorage.getItem('local_complaints');
-      let list = local ? JSON.parse(local) : [];
-      list = list.map(c => c.id === id ? { ...c, status } : c);
-      localStorage.setItem('local_complaints', JSON.stringify(list));
-      return { id, status };
-    }
-  },
-  getSystemErrors: async () => {
-    try {
-      const res = await api.get('/system-errors');
-      return res.data?.data || res.data || [];
-    } catch (err) {
-      console.warn("Lỗi kết nối API /system-errors, chuyển sang chế độ lưu trữ cục bộ (localStorage):", err.message);
-      const local = localStorage.getItem('local_system_errors');
-      return local ? JSON.parse(local) : [];
-    }
-  },
-  saveLocalSystemErrors: (errors) => {
-    localStorage.setItem('local_system_errors', JSON.stringify(errors));
-  },
-  updateSystemErrorStatus: async (id, status) => {
-    try {
-      const res = await api.patch(`/system-errors/${id}/status`, null, { params: { status } });
-      return res.data?.data || res.data;
-    } catch (err) {
-      console.warn("Lỗi kết nối API cập nhật trạng thái sự cố, thực hiện cập nhật cục bộ:", err.message);
-      const local = localStorage.getItem('local_system_errors');
-      let list = local ? JSON.parse(local) : [];
-      list = list.map(e => e.id === id ? { ...e, status } : e);
-      localStorage.setItem('local_system_errors', JSON.stringify(list));
-      return { id, status };
-    }
   }
 };
